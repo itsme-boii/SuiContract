@@ -2,16 +2,25 @@ module Oasis::Oasis{
 
         use sui::tx_context::TxContext;
         use sui::tx_context ;
-        use sui::object::{Self, UID};
+        use sui::object::{Self, ID, UID};
         use std::string::String;
         use std::vector;
         use sui::address;
         use sui::transfer;
         use sui::dynamic_object_field as ofield;
+        use sui::event;
+        use sui::coin
+        
 
 
         struct Data has key {
             id:UID
+        }
+
+        struct NFTMinted has copy, drop {
+          object_id:ID,	
+          creator:address,	
+          name:String
         }
 
 
@@ -29,7 +38,7 @@ module Oasis::Oasis{
             owner:address,
             number:u64
         }
-
+  
 
     // this is the struct for the publicmint
         struct PublicMint has key,store{
@@ -82,30 +91,29 @@ module Oasis::Oasis{
             traitType:String,
             value:u64,
             number:u64,
-            // publicMint:bool,
-            // preSale:bool,
-            // multipleStakeholder:bool,
-            array:&mut Vector,
+            uname:String,
             ctx:&mut TxContext)
             {
             let sender_address = tx_context::sender(ctx);
-            let nft = Nft{
-                id:object::new(ctx),
+            let id = object::new(ctx);
+            let nft1 = Nft{
+                id:id,
                 image:imageUrl,
                 name:name,
                 description:description,
                 traitType:traitType,
                 value:value,
-                // publicMint:publicMint,
-                // preSale:preSale,
-                // multipleStakeholder:multipleStakeholder,
                 number:number,
                 owner:tx_context::sender(ctx)
                
             };
-
-            make_vector(array,nft)
-        
+            let nftevent=NFTMinted{
+                object_id:object::id<Nft>(&nft1),	
+                creator:sender_address,	
+                name:uname
+            };
+            event::emit<NFTMinted>(nftevent);
+            transfer::transfer<Nft>(nft1, sender_address)
         }
 
     // create user and then add to to parent data with the name as its key
@@ -158,8 +166,10 @@ module Oasis::Oasis{
             ofield::add(&mut nft.id,b"PreSale",preSale);
         }
 
-        entry public fun make_vector(array:&mut Vector,nft:Nft){
-            vector::push_back(&mut array.store,nft)
+    //used to push the nft to vector
+        entry public fun make_vector(data:&mut Data,nft:Nft,uname:String){
+            let ref=ofield::borrow_mut<String, Vector>(&mut data.id, uname);
+            vector::push_back(&mut ref.store,nft)
         }
 
 }
